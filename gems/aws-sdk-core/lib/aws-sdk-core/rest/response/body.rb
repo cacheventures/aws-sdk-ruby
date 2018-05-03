@@ -1,3 +1,5 @@
+require 'aws-eventstream'
+
 module Aws
   module Rest
     module Response
@@ -15,7 +17,9 @@ module Aws
         # @param [IO] body
         # @param [Hash, Struct] data
         def apply(body, data)
-          if streaming?
+          if event_stream?
+            data[@rules[:payload]] = parse_eventstream(body)
+          elsif streaming?
             data[@rules[:payload]] = body
           elsif @rules[:payload]
             data[@rules[:payload]] = parse(body.read, @rules[:payload_member])
@@ -26,6 +30,10 @@ module Aws
 
         private
 
+        def event_stream?
+          @rules[:payload] && @rules[:payload_member].eventstream
+        end
+
         def streaming?
           @rules[:payload] && (
             BlobShape === @rules[:payload_member].shape ||
@@ -35,6 +43,15 @@ module Aws
 
         def parse(body, rules, target = nil)
           @parser_class.new(rules).parse(body, target) if body.size > 0
+        end
+
+        def parse_eventstream(body)
+          event_parser = Aws::Binary::EventParser.new(@parser_class, @rules[:payload_member])
+          @rules[:payload_member].shape.struct_class.new do |eventstream|
+            Aws::EventStream::Decoder.new.decode(body) do |raw|
+              eventstream.yield(event_parser.apply(raw))
+            end
+          end
         end
 
       end
