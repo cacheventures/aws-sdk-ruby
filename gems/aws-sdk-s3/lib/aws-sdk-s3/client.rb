@@ -7,6 +7,7 @@
 
 require 'seahorse/client/plugins/content_length.rb'
 require 'aws-sdk-core/plugins/credentials_configuration.rb'
+require 'aws-sdk-core/plugins/event_stream_configuration.rb'
 require 'aws-sdk-core/plugins/logging.rb'
 require 'aws-sdk-core/plugins/param_converter.rb'
 require 'aws-sdk-core/plugins/param_validator.rb'
@@ -48,6 +49,7 @@ module Aws::S3
 
     add_plugin(Seahorse::Client::Plugins::ContentLength)
     add_plugin(Aws::Plugins::CredentialsConfiguration)
+    add_plugin(Aws::Plugins::EventStreamConfiguration)
     add_plugin(Aws::Plugins::Logging)
     add_plugin(Aws::Plugins::ParamConverter)
     add_plugin(Aws::Plugins::ParamValidator)
@@ -132,6 +134,9 @@ module Aws::S3
     #   The client endpoint is normally constructed from the `:region`
     #   option. You should only configure an `:endpoint` when connecting
     #   to test endpoints. This should be avalid HTTP(S) URI.
+    #
+    # @option options [Proc] :event_stream_handler
+    #   When an EventStream or Proc object is provided, it will be used as callback for each chunk of event stream response received along the way.
     #
     # @option options [Boolean] :follow_redirects (true)
     #   When `true`, this client will follow 307 redirects returned
@@ -5788,6 +5793,141 @@ module Aws::S3
     def restore_object(params = {}, options = {})
       req = build_request(:restore_object, params)
       req.send_request(options)
+    end
+
+    # This operation filters the contents of an Amazon S3 object based on a
+    # simple Structured Query Language (SQL) statement. In the request,
+    # along with the SQL expression, you must also specify a data
+    # serialization format (JSON or CSV) of the object. Amazon S3 uses this
+    # to parse object data into records, and returns only records that match
+    # the specified SQL expression. You must also specify the data
+    # serialization format for the response.
+    #
+    # @option params [required, String] :bucket
+    #   The S3 Bucket.
+    #
+    # @option params [required, String] :key
+    #   The Object Key.
+    #
+    # @option params [String] :sse_customer_algorithm
+    #   The SSE Algorithm used to encrypt the object. For more information, go
+    #   to [ Server-Side Encryption (Using Customer-Provided Encryption
+    #   Keys][1].
+    #
+    #
+    #
+    #   [1]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html
+    #
+    # @option params [String] :sse_customer_key
+    #   The SSE Customer Key. For more information, go to [ Server-Side
+    #   Encryption (Using Customer-Provided Encryption Keys][1].
+    #
+    #
+    #
+    #   [1]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html
+    #
+    # @option params [String] :sse_customer_key_md5
+    #   The SSE Customer Key MD5. For more information, go to [ Server-Side
+    #   Encryption (Using Customer-Provided Encryption Keys][1].
+    #
+    #
+    #
+    #   [1]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html
+    #
+    # @option params [required, String] :expression
+    #   The expression that is used to query the object.
+    #
+    # @option params [required, String] :expression_type
+    #   The type of the provided expression (e.g., SQL).
+    #
+    # @option params [Types::RequestProgress] :request_progress
+    #   Specifies if periodic request progress information should be enabled.
+    #
+    # @option params [required, Types::InputSerialization] :input_serialization
+    #   Describes the format of the data in the object that is being queried.
+    #
+    # @option params [required, Types::OutputSerialization] :output_serialization
+    #   Describes the format of the data that you want Amazon S3 to return in
+    #   response.
+    #
+    # @return [Types::SelectObjectContentOutput] Returns a {Seahorse::Client::Response response} object which responds to the following methods:
+    #
+    #   * {Types::SelectObjectContentOutput#payload #payload} => Types::SelectObjectContentEventStream
+    #
+    # @example Request syntax with placeholder values
+    #
+    #   resp = client.select_object_content({
+    #     bucket: "BucketName", # required
+    #     key: "ObjectKey", # required
+    #     sse_customer_algorithm: "SSECustomerAlgorithm",
+    #     sse_customer_key: "SSECustomerKey",
+    #     sse_customer_key_md5: "SSECustomerKeyMD5",
+    #     expression: "Expression", # required
+    #     expression_type: "SQL", # required, accepts SQL
+    #     request_progress: {
+    #       enabled: false,
+    #     },
+    #     input_serialization: { # required
+    #       csv: {
+    #         file_header_info: "USE", # accepts USE, IGNORE, NONE
+    #         comments: "Comments",
+    #         quote_escape_character: "QuoteEscapeCharacter",
+    #         record_delimiter: "RecordDelimiter",
+    #         field_delimiter: "FieldDelimiter",
+    #         quote_character: "QuoteCharacter",
+    #       },
+    #       compression_type: "NONE", # accepts NONE, GZIP
+    #       json: {
+    #         type: "DOCUMENT", # accepts DOCUMENT, LINES
+    #       },
+    #     },
+    #     output_serialization: { # required
+    #       csv: {
+    #         quote_fields: "ALWAYS", # accepts ALWAYS, ASNEEDED
+    #         quote_escape_character: "QuoteEscapeCharacter",
+    #         record_delimiter: "RecordDelimiter",
+    #         field_delimiter: "FieldDelimiter",
+    #         quote_character: "QuoteCharacter",
+    #       },
+    #       json: {
+    #         record_delimiter: "RecordDelimiter",
+    #       },
+    #     },
+    #   })
+    #
+    # @example Response structure
+    #
+    #   resp.payload.records.payload #=> IO
+    #   resp.payload.stats.details.bytes_scanned #=> Integer
+    #   resp.payload.stats.details.bytes_processed #=> Integer
+    #   resp.payload.progress.details.bytes_scanned #=> Integer
+    #   resp.payload.progress.details.bytes_processed #=> Integer
+    #
+    # @see http://docs.aws.amazon.com/goto/WebAPI/s3-2006-03-01/SelectObjectContent AWS API Documentation
+    #
+    # @overload select_object_content(params = {})
+    # @param [Hash] params ({})
+    def select_object_content(params = {}, options = {}, &block)
+      params = params.dup
+      event_stream_handler = case handler = params.delete(:event_stream_handler)
+        when EventStreams::SelectObjectContentEventStream then handler
+        when Proc then EventStreams::SelectObjectContentEventStream.new.tap(&handler)
+        when nil then EventStreams::SelectObjectContentEventStream.new
+        else
+          msg = "expected :event_stream_handler to be a block or "\
+            "instance of Aws::S3::EventStreams::SelectObjectContentEventStream"\
+            ", got `#{handler.inspect}` instead"
+          raise ArgumentError, msg
+        end
+
+      yield(event_stream_handler) if block_given?
+
+      req = build_request(:select_object_content, params)
+
+      req.context[:event_stream_handler] = event_stream_handler
+      req.handlers.add(Aws::Binary::DecodeHandler, priority: 95)
+
+      req.send_request(options, &block)
     end
 
     # Uploads a part in a multipart upload.

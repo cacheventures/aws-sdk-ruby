@@ -91,9 +91,9 @@ module AwsSdkCodeGenerator
 
       def eventstream_docs(shape_name)
         # current eventstream support is response only
-        if @output_shapes.include?(shape_name)
-          # TODO for eventstream class docs
-        end
+        # if @output_shapes.include?(shape_name)
+        #   # TODO for eventstream class docs
+        # end
       end
 
       def input_example_docs(shape_name)

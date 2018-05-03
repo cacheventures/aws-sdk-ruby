@@ -7,6 +7,7 @@
 
 require 'seahorse/client/plugins/content_length.rb'
 require 'aws-sdk-core/plugins/credentials_configuration.rb'
+require 'aws-sdk-core/plugins/event_stream_configuration.rb'
 require 'aws-sdk-core/plugins/logging.rb'
 require 'aws-sdk-core/plugins/param_converter.rb'
 require 'aws-sdk-core/plugins/param_validator.rb'
@@ -35,6 +36,7 @@ module Aws::LambdaPreview
 
     add_plugin(Seahorse::Client::Plugins::ContentLength)
     add_plugin(Aws::Plugins::CredentialsConfiguration)
+    add_plugin(Aws::Plugins::EventStreamConfiguration)
     add_plugin(Aws::Plugins::Logging)
     add_plugin(Aws::Plugins::ParamConverter)
     add_plugin(Aws::Plugins::ParamValidator)
@@ -100,6 +102,9 @@ module Aws::LambdaPreview
     #   The client endpoint is normally constructed from the `:region`
     #   option. You should only configure an `:endpoint` when connecting
     #   to test endpoints. This should be avalid HTTP(S) URI.
+    #
+    # @option options [Proc] :event_stream_handler
+    #   When an EventStream or Proc object is provided, it will be used as callback for each chunk of event stream response received along the way.
     #
     # @option options [Aws::Log::Formatter] :log_formatter (Aws::Log::Formatter.default)
     #   The log formatter.
